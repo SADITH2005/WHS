@@ -68,6 +68,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { supabase } from '../supabase'
 
 const highestDemandItem = ref({})
 const lowestDemandItem = ref({})
@@ -80,11 +81,9 @@ const reportColumns = [
   { name: 'totalItems', align: 'center', label: 'Total Items (EA)', field: 'totalItems', sortable: true }
 ]
 
-onMounted(() => {
-  const storedOrders = localStorage.getItem('orders_db')
-  if (!storedOrders) return
-  
-  const orders = JSON.parse(storedOrders)
+onMounted(async () => {
+  const { data: orders, error } = await supabase.from('orders').select('*')
+  if (error || !orders) return
   
   const itemCounts = {}
   const branchCounts = {}

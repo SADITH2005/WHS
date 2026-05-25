@@ -79,6 +79,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 
@@ -88,28 +89,27 @@ const activeOrders = ref([])
 const targetBranchCode = ref('')
 const errorPulse = ref(false)
 
-const findOrdersByBranch = () => {
+const findOrdersByBranch = async () => {
   if (!searchBranchCode.value) return
   
-  const storedOrders = localStorage.getItem('orders_db')
-  const orders = storedOrders ? JSON.parse(storedOrders) : []
-  
-  // Find all packed orders for this exact branch code
-  const foundPacked = orders.filter(o => o.branchCode === searchBranchCode.value && o.status.includes('Packed'))
-  
-  if (foundPacked.length === 0) {
+  const { data, error } = await supabase.from('orders')
+    .select('*')
+    .eq('branchCode', searchBranchCode.value)
+    .ilike('status', 'Packed%')
+    
+  if (error || !data || data.length === 0) {
     $q.notify({ color: 'warning', message: 'No packed orders found ready for this branch!', position: 'top' })
     return
   }
   
-  activeOrders.value = foundPacked
+  activeOrders.value = data
   targetBranchCode.value = searchBranchCode.value
   searchBranchCode.value = ''
   gateQr.value = ''
   errorPulse.value = false
 }
 
-const verifyGate = () => {
+const verifyGate = async () => {
   if (!gateQr.value) return
 
   if (gateQr.value !== targetBranchCode.value) {
@@ -128,24 +128,20 @@ const verifyGate = () => {
   }
 
   // Match! Load all packed orders for this branch.
-  const storedOrders = localStorage.getItem('orders_db')
-  const orders = storedOrders ? JSON.parse(storedOrders) : []
+  const invoiceIds = activeOrders.value.map(o => o.invoiceId)
   
-  // Update status for all matching invoices
-  let countUpdated = 0
-  activeOrders.value.forEach(activeOrd => {
-    const idx = orders.findIndex(o => o.invoiceId === activeOrd.invoiceId)
-    if (idx > -1) {
-      orders[idx].status = 'Collected'
-      countUpdated++
-    }
-  })
-  
-  localStorage.setItem('orders_db', JSON.stringify(orders))
+  const { error } = await supabase.from('orders')
+    .update({ status: 'Collected' })
+    .in('invoiceId', invoiceIds)
+    
+  if (error) {
+    $q.notify({ color: 'negative', message: 'Failed to update orders' })
+    return
+  }
   
   $q.notify({ 
     color: 'positive', 
-    message: `Verified! ${countUpdated} Orders Loaded Successfully.`, 
+    message: `Verified! ${invoiceIds.length} Orders Loaded Successfully.`, 
     icon: 'check_circle', 
     position: 'top', 
     timeout: 3000 

@@ -193,6 +193,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import Papa from 'papaparse'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 
@@ -214,12 +215,16 @@ const branchesDb = ref([])
 const inventoryDb = ref([])
 
 onMounted(() => {
-  const storedBranches = localStorage.getItem('branches_db')
-  if (storedBranches) branchesDb.value = JSON.parse(storedBranches)
-
-  const storedInv = localStorage.getItem('inventory_db')
-  if (storedInv) inventoryDb.value = JSON.parse(storedInv)
+  fetchData()
 })
+
+const fetchData = async () => {
+  const { data: bData } = await supabase.from('branches').select('*')
+  if (bData) branchesDb.value = bData
+  
+  const { data: iData } = await supabase.from('inventory').select('*')
+  if (iData) inventoryDb.value = iData
+}
 
 const branchOptions = computed(() => {
   return branchesDb.value.map(b => ({ label: `${b.code} - ${b.name}`, value: b.code }))
@@ -342,20 +347,22 @@ const handleCsvUpload = (file) => {
   })
 }
 
-const submitOrder = () => {
-  const storedOrders = localStorage.getItem('orders_db')
-  const orders = storedOrders ? JSON.parse(storedOrders) : []
+const submitOrder = async () => {
+  const branchName = branchesDb.value.find(b => b.code === branchCode.value)?.name || ''
   
-  const newOrder = {
-    invoiceId: invoiceId.value, // Using the inputted Pick List ID as the Invoice ID
+  const { error } = await supabase.from('orders').insert([{
+    invoiceId: invoiceId.value,
     branchCode: branchCode.value,
+    branchName: branchName,
     date: date.value,
     status: 'Pending',
-    items: [...items.value]
+    items: items.value
+  }])
+
+  if (error) {
+    $q.notify({ color: 'negative', message: 'Failed to create invoice' })
+    return
   }
-  
-  orders.push(newOrder)
-  localStorage.setItem('orders_db', JSON.stringify(orders))
 
   $q.notify({ color: 'positive', message: `Invoice created successfully!`, icon: 'cloud_done', position: 'top', timeout: 3000 })
   resetAll()

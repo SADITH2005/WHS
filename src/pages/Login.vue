@@ -65,6 +65,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -72,7 +73,6 @@ const router = useRouter()
 const empId = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const usersDb = ref([])
 
 onMounted(() => {
   // Check for logout success
@@ -81,31 +81,23 @@ onMounted(() => {
     sessionStorage.removeItem('loggedOut')
   }
 
-  // Initialize user DB
-  const storedUsers = localStorage.getItem('users_db')
-  if (storedUsers) {
-    usersDb.value = JSON.parse(storedUsers)
-  } else {
-    // Seed default admin if DB is completely empty
-    const defaultAdmin = {
-      empId: 'admin',
-      name: 'System Administrator',
-      password: 'admin',
-      role: 'Admin',
-      status: 'Active'
-    }
-    usersDb.value = [defaultAdmin]
-    localStorage.setItem('users_db', JSON.stringify(usersDb.value))
-  }
+  // Database initialization has been moved to Supabase backend
 })
 
-const handleLogin = () => {
-  const user = usersDb.value.find(u => u.empId === empId.value)
+const handleLogin = async () => {
+  if (!empId.value || !password.value) return
 
-  if (!user) {
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('empId', empId.value)
+    
+  if (error || !users || users.length === 0) {
     $q.notify({ color: 'negative', message: 'Invalid Employee ID or Password', icon: 'error' })
     return
   }
+
+  const user = users[0]
 
   if (user.password !== password.value) {
     $q.notify({ color: 'negative', message: 'Invalid Employee ID or Password', icon: 'error' })

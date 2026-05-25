@@ -141,6 +141,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 
@@ -207,33 +208,37 @@ const filteredOrders = computed(() => {
 })
 
 onMounted(() => {
-  const storedOrders = localStorage.getItem('orders_db')
-  if (storedOrders) orders.value = JSON.parse(storedOrders)
-  
-  const storedBranches = localStorage.getItem('branches_db')
-  if (storedBranches) branchesDb.value = JSON.parse(storedBranches)
+  fetchData()
 })
+
+const fetchData = async () => {
+  const { data: bData } = await supabase.from('branches').select('*')
+  if (bData) branchesDb.value = bData
+  
+  const { data: oData } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
+  if (oData) orders.value = oData
+}
 
 const branchOptions = computed(() => {
   return branchesDb.value.map(b => ({ label: `${b.code} - ${b.name}`, value: b.code }))
 })
 
-const saveToDb = () => {
-  localStorage.setItem('orders_db', JSON.stringify(orders.value))
+const removeOrder = async (invoiceId) => {
+  const { error } = await supabase.from('orders').delete().eq('invoiceId', invoiceId)
+  if (!error) {
+    $q.notify({ color: 'info', message: 'Order Deleted' })
+    fetchData()
+  }
 }
 
-const removeOrder = (invoiceId) => {
-  orders.value = orders.value.filter(o => o.invoiceId !== invoiceId)
-  saveToDb()
-  $q.notify({ color: 'info', message: 'Order Deleted' })
-}
-
-const deleteSelected = () => {
+const deleteSelected = async () => {
   const idsToDelete = selectedOrders.value.map(o => o.invoiceId)
-  orders.value = orders.value.filter(o => !idsToDelete.includes(o.invoiceId))
-  selectedOrders.value = []
-  saveToDb()
-  $q.notify({ color: 'positive', message: 'Selected Orders Deleted' })
+  if (idsToDelete.length > 0) {
+    await supabase.from('orders').delete().in('invoiceId', idsToDelete)
+    selectedOrders.value = []
+    $q.notify({ color: 'positive', message: 'Selected Orders Deleted' })
+    fetchData()
+  }
 }
 
 const openEditDialog = (order) => {
@@ -246,18 +251,30 @@ const removeItemFromEdit = (index) => {
   editOrderData.value.items.splice(index, 1)
 }
 
-const saveEdit = () => {
+const saveEdit = async () => {
   if (editOrderData.value.items.length === 0) {
     $q.notify({ color: 'warning', message: 'Order must have at least one item, or delete the order entirely.' })
     return
   }
   
-  const idx = orders.value.findIndex(o => o.invoiceId === editOrderData.value.invoiceId)
-  if (idx > -1) {
-    orders.value[idx] = { ...editOrderData.value }
-    saveToDb()
+  const branchName = branchesDb.value.find(b => b.code === editOrderData.value.branchCode)?.name || ''
+  
+  const { error } = await supabase.from('orders')
+    .update({ 
+      branchCode: editOrderData.value.branchCode,
+      branchName: branchName,
+      date: editOrderData.value.date,
+      status: editOrderData.value.status,
+      items: editOrderData.value.items
+    })
+    .eq('invoiceId', editOrderData.value.invoiceId)
+    
+  if (!error) {
     showEditDialog.value = false
     $q.notify({ color: 'positive', message: 'Order Updated Successfully' })
+    fetchData()
+  } else {
+    $q.notify({ color: 'negative', message: 'Failed to update order' })
   }
 }
 </script>

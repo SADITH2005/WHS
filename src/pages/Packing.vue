@@ -155,6 +155,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 const CARDBOARD_BOX_WEIGHT = 0.5 // Standard box weight 500g
@@ -175,15 +176,12 @@ const scannedMultipleItems = ref([])
 const inventoryDb = ref([])
 const ordersDb = ref([])
 
-onMounted(() => {
-  const bDb = localStorage.getItem('branches_db')
-  if (bDb) branches.value = JSON.parse(bDb).map(b => b.code)
+onMounted(async () => {
+  const { data: bData } = await supabase.from('branches').select('code')
+  if (bData) branches.value = bData.map(b => b.code)
 
-  const inv = localStorage.getItem('inventory_db')
-  if (inv) inventoryDb.value = JSON.parse(inv)
-  
-  const ord = localStorage.getItem('orders_db')
-  if (ord) ordersDb.value = JSON.parse(ord)
+  const { data: iData } = await supabase.from('inventory').select('*')
+  if (iData) inventoryDb.value = iData
 })
 
 watch(packMode, () => {
@@ -193,11 +191,13 @@ watch(packMode, () => {
   multiScanBarcode.value = ''
 })
 
-const loadInvoice = () => {
+const loadInvoice = async () => {
   if (!invoiceId.value) return
   
-  const order = ordersDb.value.find(o => o.invoiceId === invoiceId.value)
-  if (order) {
+  const { data, error } = await supabase.from('orders').select('*').eq('invoiceId', invoiceId.value)
+  
+  if (!error && data && data.length > 0) {
+    const order = data[0]
     if (order.status === 'Packed') {
       $q.notify({ color: 'warning', message: 'Order is already marked as Packed!' })
       activeOrder.value = null
@@ -311,9 +311,8 @@ const allPacked = computed(() => {
   return activeOrder.value && activeOrder.value.items.length > 0 && activeOrder.value.items.every(i => i.packStatus === 'Packed' || i.packStatus === 'Missing')
 })
 
-const finishOrder = () => {
-  const dbIndex = ordersDb.value.findIndex(o => o.invoiceId === activeOrder.value.invoiceId)
-  if (dbIndex > -1) {
+const finishOrder = async () => {
+  if (activeOrder.value) {
     // Check if any items were missing, we might want to attach this info
     const missingCount = activeOrder.value.items.filter(i => i.packStatus === 'Missing').length
     const finalStatus = missingCount > 0 ? 'Packed (Partial)' : 'Packed'
@@ -326,9 +325,14 @@ const finishOrder = () => {
       return i
     })
     
-    ordersDb.value[dbIndex].status = finalStatus
-    ordersDb.value[dbIndex].items = finalItems
-    localStorage.setItem('orders_db', JSON.stringify(ordersDb.value))
+    const { error } = await supabase.from('orders')
+      .update({ status: finalStatus, items: finalItems })
+      .eq('invoiceId', activeOrder.value.invoiceId)
+      
+    if (error) {
+      $q.notify({ color: 'negative', message: 'Failed to update order status' })
+      return
+    }
     
     $q.notify({ color: 'positive', message: `Order dispatched! ${missingCount > 0 ? '(' + missingCount + ' items missing)' : ''}`, icon: 'local_shipping' })
     activeOrder.value = null

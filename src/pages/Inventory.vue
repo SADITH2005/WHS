@@ -153,6 +153,7 @@
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import Papa from 'papaparse'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 const tab = ref('manual')
@@ -185,43 +186,55 @@ const columns = [
 ]
 
 onMounted(() => {
-  const stored = localStorage.getItem('inventory_db')
-  if (stored) inventory.value = JSON.parse(stored)
+  fetchInventory()
 })
 
-const saveToDb = () => {
-  localStorage.setItem('inventory_db', JSON.stringify(inventory.value))
+const fetchInventory = async () => {
+  const { data, error } = await supabase.from('inventory').select('*').order('created_at', { ascending: false })
+  if (!error && data) {
+    inventory.value = data
+  }
 }
 
-const addInventoryItem = () => {
+const addInventoryItem = async () => {
   if (newItem.value.barcode && newItem.value.sku) {
     if (inventory.value.find(i => i.barcode === newItem.value.barcode)) {
       $q.notify({ color: 'warning', message: 'Barcode already exists!' })
       return
     }
-    inventory.value.unshift({ ...newItem.value })
-    saveToDb()
+    
+    const { error } = await supabase.from('inventory').insert([{ ...newItem.value }])
+    
+    if (error) {
+      $q.notify({ color: 'negative', message: 'Failed to add item' })
+      return
+    }
     
     newItem.value = {
       supplierName: '', supplierCode: '', barcode: '', sku: '',
       boxWeight: '', boxHeight: '', packSize: '', eaPerCase: 1
     }
     $q.notify({ color: 'positive', message: 'Item Saved', icon: 'check_circle' })
+    fetchInventory()
   }
 }
 
-const removeItem = (barcode) => {
-  inventory.value = inventory.value.filter(item => item.barcode !== barcode)
-  saveToDb()
-  $q.notify({ color: 'info', message: 'Item Deleted' })
+const removeItem = async (barcode) => {
+  const { error } = await supabase.from('inventory').delete().eq('barcode', barcode)
+  if (!error) {
+    $q.notify({ color: 'info', message: 'Item Deleted' })
+    fetchInventory()
+  }
 }
 
-const deleteSelected = () => {
+const deleteSelected = async () => {
   const barcodesToDelete = selectedItems.value.map(i => i.barcode)
-  inventory.value = inventory.value.filter(item => !barcodesToDelete.includes(item.barcode))
-  selectedItems.value = []
-  saveToDb()
-  $q.notify({ color: 'positive', message: 'Selected Items Deleted' })
+  if (barcodesToDelete.length > 0) {
+    await supabase.from('inventory').delete().in('barcode', barcodesToDelete)
+    selectedItems.value = []
+    $q.notify({ color: 'positive', message: 'Selected Items Deleted' })
+    fetchInventory()
+  }
 }
 
 const openEditDialog = (item) => {
@@ -229,13 +242,17 @@ const openEditDialog = (item) => {
   showEditDialog.value = true
 }
 
-const saveEdit = () => {
-  const idx = inventory.value.findIndex(i => i.barcode === editItem.value.barcode)
-  if (idx > -1) {
-    inventory.value[idx] = { ...editItem.value }
-    saveToDb()
+const saveEdit = async () => {
+  const { error } = await supabase.from('inventory')
+    .update({ ...editItem.value })
+    .eq('barcode', editItem.value.barcode)
+    
+  if (!error) {
     showEditDialog.value = false
     $q.notify({ color: 'positive', message: 'Item Updated' })
+    fetchInventory()
+  } else {
+    $q.notify({ color: 'negative', message: 'Failed to update item' })
   }
 }
 
@@ -244,14 +261,16 @@ const handleCsvUpload = (file) => {
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
-    complete: (results) => {
+    complete: async (results) => {
       let addedCount = 0
+      const itemsToInsert = []
+      
       results.data.forEach(row => {
         const barcode = row['Item code'] || row['Barcode'] || row['Item code(BARCODE)'] || Object.values(row)[2]
         const eaPerCase = parseInt(row['Items per Case'] || row['EA/CS'] || row['Items Per Case (EA)']) || 1
         
         if (barcode && !inventory.value.find(i => i.barcode === barcode)) {
-          inventory.value.push({
+          itemsToInsert.push({
             supplierName: row['Supplier Name'] || Object.values(row)[0] || '',
             supplierCode: row['Supplier code'] || Object.values(row)[1] || '',
             barcode: barcode,
@@ -264,7 +283,12 @@ const handleCsvUpload = (file) => {
           addedCount++
         }
       })
-      saveToDb()
+      
+      if (itemsToInsert.length > 0) {
+        await supabase.from('inventory').insert(itemsToInsert)
+        fetchInventory()
+      }
+      
       $q.notify({ color: 'positive', message: `${addedCount} items registered` })
       csvFile.value = null
     }

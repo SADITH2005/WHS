@@ -138,6 +138,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 
@@ -167,12 +168,15 @@ onMounted(() => {
   const cUser = localStorage.getItem('currentUser')
   if (cUser) currentUser.value = JSON.parse(cUser)
 
-  const stored = localStorage.getItem('users_db')
-  if (stored) users.value = JSON.parse(stored)
+  fetchUsers()
 })
 
-const saveDb = () => {
-  localStorage.setItem('users_db', JSON.stringify(users.value))
+const fetchUsers = async () => {
+  const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false })
+  if (!error && data) {
+    // default status field is not in schema but used in frontend. Map to Active if missing.
+    users.value = data.map(u => ({ ...u, status: u.status || 'Active' }))
+  }
 }
 
 const getRoleColor = (role) => {
@@ -185,17 +189,29 @@ const getRoleColor = (role) => {
   return map[role] || 'grey'
 }
 
-const registerUser = () => {
+const registerUser = async () => {
   if (users.value.find(u => u.empId === newUser.value.empId)) {
     $q.notify({ color: 'warning', message: 'Employee ID already exists!' })
     return
   }
   
-  users.value.push({ ...newUser.value, status: 'Active' })
-  saveDb()
+  const { error } = await supabase.from('users').insert([
+    {
+      empId: newUser.value.empId,
+      name: newUser.value.name,
+      password: newUser.value.password,
+      role: newUser.value.role
+    }
+  ])
+
+  if (error) {
+    $q.notify({ color: 'negative', message: 'Failed to register employee' })
+    return
+  }
+
   $q.notify({ color: 'positive', message: 'Employee Registered!' })
-  
   newUser.value = { empId: '', name: '', password: '', role: 'Packer', status: 'Active' }
+  fetchUsers()
 }
 
 const openEditDialog = (user) => {
@@ -203,42 +219,64 @@ const openEditDialog = (user) => {
   showEditDialog.value = true
 }
 
-const saveEdit = () => {
-  const idx = users.value.findIndex(u => u.empId === editData.value.empId)
-  if (idx > -1) {
-    users.value[idx] = { ...editData.value }
-    saveDb()
-    showEditDialog.value = false
-    $q.notify({ color: 'positive', message: 'User updated successfully' })
+const saveEdit = async () => {
+  const { error } = await supabase
+    .from('users')
+    .update({
+      name: editData.value.name,
+      password: editData.value.password,
+      role: editData.value.role
+    })
+    .eq('empId', editData.value.empId)
+
+  if (error) {
+    $q.notify({ color: 'negative', message: 'Failed to update user' })
+    return
   }
+
+  showEditDialog.value = false
+  $q.notify({ color: 'positive', message: 'User updated successfully' })
+  fetchUsers()
 }
 
-const toggleBan = (user) => {
+const toggleBan = async (user) => {
   if (user.empId === currentUser.value.empId) {
     $q.notify({ color: 'negative', message: 'You cannot ban yourself!' })
     return
   }
+  // status isn't in db schema directly yet, but we will mock it in frontend
   user.status = user.status === 'Active' ? 'Banned' : 'Active'
-  saveDb()
   $q.notify({ color: 'info', message: `User is now ${user.status}` })
 }
 
-const deleteUser = (empId) => {
+const deleteUser = async (empId) => {
   if (empId === currentUser.value.empId) {
     $q.notify({ color: 'negative', message: 'You cannot delete yourself!' })
     return
   }
-  users.value = users.value.filter(u => u.empId !== empId)
-  saveDb()
+  
+  const { error } = await supabase.from('users').delete().eq('empId', empId)
+  
+  if (error) {
+    $q.notify({ color: 'negative', message: 'Failed to delete user' })
+    return
+  }
+  
   $q.notify({ color: 'info', message: 'User deleted' })
+  fetchUsers()
 }
 
-const backupData = () => {
+const backupData = async () => {
+  const { data: usersData } = await supabase.from('users').select('*')
+  const { data: inventoryData } = await supabase.from('inventory').select('*')
+  const { data: branchesData } = await supabase.from('branches').select('*')
+  const { data: ordersData } = await supabase.from('orders').select('*')
+
   const data = {
-    users: JSON.parse(localStorage.getItem('users_db') || '[]'),
-    inventory: JSON.parse(localStorage.getItem('inventory_db') || '[]'),
-    branches: JSON.parse(localStorage.getItem('branches_db') || '[]'),
-    orders: JSON.parse(localStorage.getItem('orders_db') || '[]')
+    users: usersData || [],
+    inventory: inventoryData || [],
+    branches: branchesData || [],
+    orders: ordersData || []
   }
   
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -263,11 +301,12 @@ const wipeData = () => {
     },
     cancel: true,
     persistent: true
-  }).onOk(data => {
+  }).onOk(async data => {
     if (data === 'CONFIRM') {
-      localStorage.removeItem('inventory_db')
-      localStorage.removeItem('branches_db')
-      localStorage.removeItem('orders_db')
+      await supabase.from('inventory').delete().neq('id', '00000000-0000-0000-0000-000000000000') // delete all
+      await supabase.from('branches').delete().neq('id', '00000000-0000-0000-0000-000000000000') // delete all
+      await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000') // delete all
+      
       $q.notify({ color: 'negative', message: 'System Data Wiped Successfully!' })
     } else {
       $q.notify({ color: 'warning', message: 'Wipe Cancelled: Incorrect confirmation text' })

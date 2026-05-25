@@ -140,6 +140,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
+import { supabase } from '../supabase'
 
 const $q = useQuasar()
 const branches = ref([])
@@ -165,43 +166,56 @@ const dispatchedItemsTotal = ref(0)
 const itemBreakdown = ref({})
 
 onMounted(() => {
-  const storedBranches = localStorage.getItem('branches_db')
-  if (storedBranches) branches.value = JSON.parse(storedBranches)
+  fetchBranches()
 })
 
-const saveToDb = () => {
-  localStorage.setItem('branches_db', JSON.stringify(branches.value))
+const fetchBranches = async () => {
+  const { data, error } = await supabase.from('branches').select('*').order('code')
+  if (!error && data) {
+    branches.value = data
+  }
 }
 
 const branchOptions = computed(() => {
   return branches.value.map(b => ({ label: `${b.code} - ${b.name}`, value: b.code }))
 })
 
-const addBranch = () => {
+const addBranch = async () => {
   if (newBranch.value.code && newBranch.value.name) {
     if (branches.value.find(b => b.code === newBranch.value.code)) {
       $q.notify({ color: 'warning', message: 'Branch Code already exists!' })
       return
     }
-    branches.value.push({ ...newBranch.value })
-    saveToDb()
-    newBranch.value = { code: '', name: '' }
+    
+    const { error } = await supabase.from('branches').insert([{ code: newBranch.value.code, name: newBranch.value.name }])
+    
+    if (error) {
+      $q.notify({ color: 'negative', message: 'Failed to add branch' })
+      return
+    }
+    
     $q.notify({ color: 'positive', message: 'Branch Registered Successfully' })
+    newBranch.value = { code: '', name: '' }
+    fetchBranches()
   }
 }
 
-const removeBranch = (code) => {
-  branches.value = branches.value.filter(b => b.code !== code)
-  saveToDb()
-  $q.notify({ color: 'info', message: 'Branch Deleted' })
+const removeBranch = async (code) => {
+  const { error } = await supabase.from('branches').delete().eq('code', code)
+  if (!error) {
+    $q.notify({ color: 'info', message: 'Branch Deleted' })
+    fetchBranches()
+  }
 }
 
-const deleteSelected = () => {
+const deleteSelected = async () => {
   const codesToDelete = selectedBranches.value.map(b => b.code)
-  branches.value = branches.value.filter(b => !codesToDelete.includes(b.code))
-  selectedBranches.value = []
-  saveToDb()
-  $q.notify({ color: 'positive', message: 'Selected Branches Deleted' })
+  if (codesToDelete.length > 0) {
+    await supabase.from('branches').delete().in('code', codesToDelete)
+    selectedBranches.value = []
+    $q.notify({ color: 'positive', message: 'Selected Branches Deleted' })
+    fetchBranches()
+  }
 }
 
 const openEditDialog = (branch) => {
@@ -209,29 +223,30 @@ const openEditDialog = (branch) => {
   showEditDialog.value = true
 }
 
-const saveEdit = () => {
-  const idx = branches.value.findIndex(b => b.code === editBranchData.value.code)
-  if (idx > -1) {
-    branches.value[idx] = { ...editBranchData.value }
-    saveToDb()
+const saveEdit = async () => {
+  const { error } = await supabase.from('branches').update({ name: editBranchData.value.name }).eq('code', editBranchData.value.code)
+  if (!error) {
     showEditDialog.value = false
     $q.notify({ color: 'positive', message: 'Branch Updated' })
+    fetchBranches()
+  } else {
+    $q.notify({ color: 'negative', message: 'Failed to update branch' })
   }
 }
 
-const generateReport = () => {
+const generateReport = async () => {
   if (!selectedReportBranch.value) {
     $q.notify({ color: 'warning', message: 'Please select a branch' })
     return
   }
 
-  const storedOrders = localStorage.getItem('orders_db')
-  const allOrders = storedOrders ? JSON.parse(storedOrders) : []
+  const { data: allOrders } = await supabase.from('orders').select('*')
+  const orders = allOrders || []
 
-  const filteredOrders = allOrders.filter(o => o.branchCode === selectedReportBranch.value && o.date === reportDate.value)
-  pendingShipments.value = filteredOrders.filter(o => o.status !== 'Packed').length
+  const filteredOrders = orders.filter(o => o.branchCode === selectedReportBranch.value && o.date === reportDate.value)
+  pendingShipments.value = filteredOrders.filter(o => o.status !== 'Packed' && o.status !== 'Collected').length
   
-  const packedOrders = filteredOrders.filter(o => o.status === 'Packed')
+  const packedOrders = filteredOrders.filter(o => o.status === 'Packed' || o.status === 'Collected')
   let dispatched = 0
   const breakdown = {}
 
