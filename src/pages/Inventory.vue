@@ -33,16 +33,15 @@
                 </q-input>
                 <q-input v-model="newItem.sku" label="SKU" outlined dense required class="bg-white/50" />
                 
-                <q-input v-model="newItem.boxWeight" label="Box/Pack Weight" outlined dense class="bg-white/50" />
-                <q-input v-model="newItem.boxHeight" label="Box/Pack Height" outlined dense class="bg-white/50" />
+                <q-select v-model="newItem.packType" :options="['Box', 'Packet']" label="PACK SIZE (Box or Packet)" outlined dense class="bg-white/50 font-bold text-black" required />
                 
-                <q-input v-model="newItem.packSize" label="Pack Size (e.g. 500g)" outlined dense class="bg-white/50" />
-                <q-input v-model.number="newItem.eaPerCase" type="number" label="Items per Case (EA)" placeholder="e.g. 24" outlined dense class="bg-white/50" required>
-                  <template v-slot:append><span class="text-xs text-gray-500 font-bold">EA / CS</span></template>
-                </q-input>
+                <div class="flex gap-2">
+                  <q-input v-model.number="newItem.eaWeight" type="number" step="0.001" label="1 EA Weight" outlined dense class="flex-grow bg-white/50 font-bold text-black" required />
+                  <q-select v-model="newItem.eaWeightUnit" :options="['Grams', 'Kilograms']" label="Unit" outlined dense class="w-32 bg-white/50 font-bold text-black" required />
+                </div>
                 
                 <div class="col-span-1 md:col-span-2 mt-4">
-                  <q-btn type="submit" color="red-8" icon="save" label="Save Item to Database" size="lg" class="w-full shadow-lg rounded-xl transition hover:scale-[1.01]" />
+                  <q-btn type="submit" color="black" icon="save" label="Save Item to Database" size="lg" class="w-full shadow-lg rounded-xl transition hover:scale-[1.01] font-bold" />
                 </div>
               </q-form>
             </q-tab-panel>
@@ -104,9 +103,15 @@
             />
           </template>
 
-          <template v-slot:body-cell-eaPerCase="props">
-            <q-td :props="props" class="font-bold text-red-700">
-              {{ props.row.eaPerCase }} EA
+          <template v-slot:body-cell-packType="props">
+            <q-td :props="props" class="font-bold text-black">
+              {{ props.row.packType }}
+            </q-td>
+          </template>
+
+          <template v-slot:body-cell-eaWeight="props">
+            <q-td :props="props" class="font-bold text-red-900">
+              {{ props.row.eaWeight }} {{ props.row.eaWeightUnit }}
             </q-td>
           </template>
           
@@ -132,14 +137,16 @@
           
           <q-card-section class="q-pt-md">
             <q-form @submit.prevent="saveEdit" class="flex flex-col gap-3">
-              <q-input v-model="editItem.barcode" label="Barcode" outlined dense disable class="bg-gray-100" />
-              <q-input v-model="editItem.sku" label="SKU" outlined dense required />
-              <q-input v-model="editItem.supplierName" label="Supplier Name" outlined dense required />
+              <q-input v-model="editItem.barcode" label="Barcode" outlined dense disable class="bg-gray-100 font-bold text-black" />
+              <q-input v-model="editItem.sku" label="SKU" outlined dense required class="font-bold text-black" />
+              <q-input v-model="editItem.supplierName" label="Supplier Name" outlined dense required class="font-bold text-black" />
+              <q-input v-model="editItem.supplierCode" label="Supplier Code" outlined dense required class="font-bold text-black" />
+              <q-select v-model="editItem.packType" :options="['Box', 'Packet']" label="PACK SIZE" outlined dense required class="font-bold text-black" />
               <div class="flex gap-2">
-                <q-input v-model="editItem.boxWeight" label="Box Weight" outlined dense class="flex-grow" />
-                <q-input v-model.number="editItem.eaPerCase" type="number" label="EA/CS" outlined dense class="w-24" required />
+                <q-input v-model.number="editItem.eaWeight" type="number" step="0.001" label="1 EA Weight" outlined dense class="flex-grow font-bold text-black" required />
+                <q-select v-model="editItem.eaWeightUnit" :options="['Grams', 'Kilograms']" label="Unit" outlined dense class="w-32 font-bold text-black" required />
               </div>
-              <q-btn type="submit" color="primary" label="Save Changes" class="w-full shadow-lg rounded-xl mt-4" />
+              <q-btn type="submit" color="black" label="Save Changes" class="w-full shadow-lg rounded-xl mt-4 font-bold" />
             </q-form>
           </q-card-section>
         </q-card>
@@ -170,18 +177,17 @@ const newItem = ref({
   supplierCode: '',
   barcode: '',
   sku: '',
-  boxWeight: '',
-  boxHeight: '',
-  packSize: '',
-  eaPerCase: 1
+  packType: 'Box',
+  eaWeight: null,
+  eaWeightUnit: 'Grams'
 })
 
 const columns = [
   { name: 'barcode', align: 'left', label: 'Barcode', field: 'barcode', sortable: true },
   { name: 'sku', align: 'left', label: 'SKU', field: 'sku', sortable: true },
   { name: 'supplierName', align: 'left', label: 'Supplier', field: 'supplierName', sortable: true },
-  { name: 'packSize', align: 'left', label: 'Size', field: 'packSize' },
-  { name: 'eaPerCase', align: 'center', label: 'Per Case', field: 'eaPerCase', sortable: true },
+  { name: 'packType', align: 'center', label: 'Pack Size', field: 'packType' },
+  { name: 'eaWeight', align: 'center', label: '1 EA Weight', field: 'eaWeight', sortable: true },
   { name: 'actions', align: 'center', label: 'Actions', field: 'actions' }
 ]
 
@@ -212,7 +218,7 @@ const addInventoryItem = async () => {
     
     newItem.value = {
       supplierName: '', supplierCode: '', barcode: '', sku: '',
-      boxWeight: '', boxHeight: '', packSize: '', eaPerCase: 1
+      packType: 'Box', eaWeight: null, eaWeightUnit: 'Grams'
     }
     $q.notify({ color: 'positive', message: 'Item Saved', icon: 'check_circle' })
     fetchInventory()
@@ -267,7 +273,6 @@ const handleCsvUpload = (file) => {
       
       results.data.forEach(row => {
         const barcode = row['Item code'] || row['Barcode'] || row['Item code(BARCODE)'] || Object.values(row)[2]
-        const eaPerCase = parseInt(row['Items per Case'] || row['EA/CS'] || row['Items Per Case (EA)']) || 1
         
         if (barcode && !inventory.value.find(i => i.barcode === barcode)) {
           itemsToInsert.push({
@@ -275,10 +280,9 @@ const handleCsvUpload = (file) => {
             supplierCode: row['Supplier code'] || Object.values(row)[1] || '',
             barcode: barcode,
             sku: row['SKU'] || Object.values(row)[3] || '',
-            boxWeight: row['BOX weigh'] || row['Pack weigh'] || Object.values(row)[4] || '',
-            boxHeight: row['hight'] || row['height'] || Object.values(row)[5] || '',
-            packSize: row['pack size'] || Object.values(row)[6] || '',
-            eaPerCase: eaPerCase
+            packType: row['Pack Type'] || row['PACK SIZE'] || 'Box',
+            eaWeight: parseFloat(row['1 EA Weight'] || row['Weight']) || 0,
+            eaWeightUnit: row['Weight Unit'] || row['Unit'] || 'Grams'
           })
           addedCount++
         }

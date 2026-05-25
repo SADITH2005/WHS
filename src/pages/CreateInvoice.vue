@@ -3,10 +3,10 @@
     <div class="max-w-xl mx-auto space-y-6">
       
       <!-- Step 1: Initialize Invoice Section -->
-      <q-card class="shadow-2xl rounded-2xl border border-white/40 bg-white/70 backdrop-blur-xl">
-        <q-card-section class="bg-gradient-to-r from-red-600 to-red-800 text-white rounded-t-2xl q-pa-sm flex flex-col sm:flex-row justify-center items-center gap-2">
+      <q-card class="shadow-2xl rounded-2xl border-2 border-black bg-white">
+        <q-card-section class="bg-black text-white rounded-t-xl q-pa-sm flex flex-col sm:flex-row justify-center items-center gap-2">
           <q-icon name="note_add" />
-          <div class="text-subtitle1 font-bold">1. Create Invoice / Pick List</div>
+          <div class="text-subtitle1 font-black uppercase">1. Create Invoice / Pick List</div>
         </q-card-section>
         
         <q-card-section class="q-pa-md space-y-4">
@@ -17,9 +17,9 @@
             dense 
             autofocus
             :disable="isListInitialized"
-            class="bg-yellow-50 border-yellow-200 font-bold"
+            class="bg-gray-100 border-2 border-black font-black text-black text-lg"
           >
-            <template v-slot:prepend><q-icon name="qr_code" color="red-7" /></template>
+            <template v-slot:prepend><q-icon name="qr_code" color="black" /></template>
           </q-input>
           
           <q-select 
@@ -33,9 +33,9 @@
             outlined 
             dense 
             :disable="isListInitialized"
-            class="bg-white/50"
+            class="bg-gray-100 font-black text-black text-lg border-2 border-black"
           >
-            <template v-slot:prepend><q-icon name="store" color="red-7" /></template>
+            <template v-slot:prepend><q-icon name="store" color="black" /></template>
           </q-select>
 
           <q-input 
@@ -45,23 +45,23 @@
             dense 
             type="date"
             :disable="isListInitialized"
-            class="bg-white/50"
+            class="bg-gray-100 font-black text-black border-2 border-black"
           />
 
           <q-btn 
             v-if="!isListInitialized"
-            color="red-8" 
+            color="black" 
             label="Start Creating Invoice" 
-            class="w-full shadow-lg rounded-xl h-12 text-lg font-bold" 
+            class="w-full shadow-lg rounded-xl h-12 text-lg font-black mt-2" 
             @click="initializeList" 
           />
           
           <q-btn 
             v-if="isListInitialized"
-            color="grey-8" 
+            color="black" 
             flat
             label="Reset Pick List" 
-            class="w-full rounded-xl" 
+            class="w-full rounded-xl font-bold bg-gray-200 border-2 border-black" 
             @click="resetAll" 
           />
         </q-card-section>
@@ -74,39 +74,39 @@
           color="black" 
           icon="add_circle" 
           label="ADD ITEM TO PICK LIST" 
-          class="w-full shadow-2xl rounded-2xl h-16 text-xl font-bold animate-pulse"
+          class="w-full shadow-2xl rounded-2xl h-16 text-xl font-black animate-pulse border-2 border-black"
           @click="showAddModal = true"
         />
 
-        <q-card class="shadow-2xl rounded-2xl overflow-hidden border border-white/40 bg-white/80 backdrop-blur-xl">
-          <q-card-section class="bg-gray-800 text-white rounded-t-2xl q-pa-sm flex justify-between items-center">
-            <div class="text-subtitle2 font-bold flex items-center gap-2">
+        <q-card class="shadow-2xl rounded-2xl overflow-hidden border-2 border-black bg-white">
+          <q-card-section class="bg-black text-white rounded-t-xl q-pa-sm flex justify-between items-center">
+            <div class="text-subtitle2 font-black flex items-center gap-2">
               <q-icon name="list_alt" />
               Invoice Items ({{ items.length }})
             </div>
-            <q-btn v-if="items.length > 0" color="red-8" label="Save Invoice" size="sm" @click="submitOrder" class="shadow-md" />
+            <q-btn v-if="items.length > 0" color="black" label="Save Invoice" class="shadow-md font-bold bg-gray-200 text-black border border-black" @click="submitOrder" />
           </q-card-section>
           
-          <q-list separator class="bg-transparent">
-            <q-item v-for="item in items" :key="item.id" class="q-pa-sm hover:bg-gray-50 transition">
+          <q-list separator class="bg-transparent border-t border-black">
+            <q-item v-for="item in items" :key="item.id" class="q-pa-sm hover:bg-gray-200 transition">
               <q-item-section avatar>
-                <q-avatar color="red-1" text-color="red-8" icon="inventory_2" />
+                <q-avatar color="black" text-color="white" icon="inventory_2" />
               </q-item-section>
               <q-item-section>
-                <q-item-label class="font-bold text-gray-800">{{ item.name }}</q-item-label>
-                <q-item-label caption class="text-gray-500">SKU: {{ item.sku }} | Weight: {{ item.weight }}kg</q-item-label>
+                <q-item-label class="font-black text-black text-lg">{{ item.name }}</q-item-label>
+                <q-item-label caption class="text-black font-bold">SKU: {{ item.sku }} | Weight: {{ item.weight }}kg</q-item-label>
                 
-                <q-item-label class="mt-1 font-bold text-red-800 bg-red-50 px-2 py-1 rounded inline-block w-max">
+                <q-item-label class="mt-1 font-black text-black bg-yellow-300 border border-black px-2 py-1 rounded inline-block w-max text-md">
                   Required: {{ formatDisplayQuantity(item.qtyInEA, item.eaPerCase) }}
                 </q-item-label>
               </q-item-section>
               
               <q-item-section side>
-                <q-btn flat round color="negative" icon="delete" @click="removeItem(item.id)" class="hover:bg-red-50" />
+                <q-btn flat round color="black" icon="delete" @click="removeItem(item.id)" class="hover:bg-red-200 font-bold" />
               </q-item-section>
             </q-item>
             
-            <q-item v-if="items.length === 0" class="q-pa-md flex justify-center text-gray-500 italic">
+            <q-item v-if="items.length === 0" class="q-pa-md flex justify-center text-black font-black italic">
               No items added yet. Click 'Add Item' above.
             </q-item>
           </q-list>
@@ -140,28 +140,24 @@
                     label="Barcode (Scan Here)" 
                     outlined 
                     autofocus 
-                    class="bg-yellow-50 border-yellow-200 font-bold"
+                    class="bg-gray-100 border-2 border-black font-black text-black text-lg"
                   >
-                    <template v-slot:prepend><q-icon name="qr_code_scanner" color="red-7" /></template>
+                    <template v-slot:prepend><q-icon name="qr_code_scanner" color="black" /></template>
                   </q-input>
                   
-                  <q-input v-model="newItem.name" label="Item Name" outlined dense required class="bg-white" />
+                  <q-input v-model="newItem.name" label="Item Name" outlined dense required class="bg-white font-bold text-black" />
                   
                   <div class="grid grid-cols-2 gap-2">
-                    <q-input v-model="newItem.sku" label="SKU" outlined dense class="bg-white" />
-                    <q-input v-model="newItem.weight" label="Item Weight" outlined dense class="bg-white" />
+                    <q-input v-model="newItem.sku" label="SKU" outlined dense class="bg-white font-bold text-black" />
+                    <q-input v-model="newItem.weight" label="Item Weight" outlined dense class="bg-white font-bold text-black" />
                   </div>
                   
                   <div class="flex gap-2">
-                    <q-input v-model.number="newItem.inputQty" label="Quantity" type="number" outlined dense required class="flex-grow bg-white" />
-                    <q-select v-model="newItem.uom" :options="['EA', 'CS']" label="UOM" outlined dense class="w-24 bg-white" />
+                    <q-input v-model.number="newItem.inputQty" label="Quantity" type="number" outlined dense required class="flex-grow bg-white font-bold text-black" />
+                    <q-select v-model="newItem.uom" :options="['EA', 'CS']" label="UOM" outlined dense class="w-24 bg-white font-bold text-black" />
                   </div>
                   
-                  <div v-if="newItem.eaPerCase > 1" class="text-xs text-red-800 bg-red-50 p-2 rounded">
-                    System Info: 1 Case = {{ newItem.eaPerCase }} EA
-                  </div>
-                  
-                  <q-btn type="submit" color="black" icon="add" label="Confirm Add" size="lg" class="w-full shadow-lg rounded-xl mt-2" />
+                  <q-btn type="submit" color="black" icon="add" label="Confirm Add" size="lg" class="w-full shadow-lg rounded-xl mt-2 font-black" />
                 </q-form>
               </q-tab-panel>
 
@@ -268,8 +264,8 @@ const lookupItemDetails = () => {
   if (found) {
     newItem.value.name = found.name || found.supplierName + ' ' + found.sku
     newItem.value.sku = found.sku
-    newItem.value.weight = found.boxWeight || found.packWeightHeight
-    newItem.value.eaPerCase = parseInt(found.eaPerCase) || 1
+    newItem.value.weight = found.eaWeight
+    newItem.value.eaPerCase = 1
     $q.notify({ color: 'info', message: 'Item Auto-filled from DB', position: 'top', timeout: 1000 })
   }
 }
@@ -323,9 +319,9 @@ const handleCsvUpload = (file) => {
         const itemName = row['Item Name'] || row['Name'] || Object.values(row)[1]
         
         const found = inventoryDb.value.find(i => i.barcode === barcode)
-        const eaPerCase = found ? (parseInt(found.eaPerCase) || 1) : 1
+        const eaPerCase = 1
         const sku = found ? found.sku : (row['SKU'] || '')
-        const weight = found ? found.boxWeight : (row['Weight'] || '')
+        const weight = found ? found.eaWeight : (row['Weight'] || '')
         
         const rawQty = parseInt(row['Pick Qty'] || row['Qty'] || Object.values(row)[2]) || 0
         const uom = (row['UOM'] || 'EA').toUpperCase()

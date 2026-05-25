@@ -2,43 +2,43 @@
   <q-page class="q-pa-md bg-gradient-to-br from-gray-50 to-gray-200 min-h-screen">
     <div class="max-w-5xl mx-auto space-y-6">
       
-      <div class="text-h4 font-bold text-gray-800 text-center q-mb-lg drop-shadow-sm">System Analytics</div>
+      <div class="text-h4 font-black text-black text-center q-mb-lg drop-shadow-sm">System Analytics</div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Highest Demand Item -->
-        <q-card class="shadow-2xl rounded-2xl bg-gradient-to-br from-red-500 to-red-700 text-white transform transition hover:scale-105">
+        <q-card class="shadow-2xl rounded-2xl border-2 border-black bg-white text-black transform transition hover:scale-105">
           <q-card-section class="flex flex-col items-center text-center q-pa-lg">
-            <q-icon name="trending_up" size="60px" class="q-mb-md opacity-80" />
-            <div class="text-h6 font-bold uppercase tracking-wider">Highest Demand</div>
+            <q-icon name="trending_up" size="60px" class="q-mb-md text-black" />
+            <div class="text-h6 font-black uppercase tracking-wider">Highest Demand</div>
             <div class="text-h5 mt-2 font-black">{{ highestDemandItem.name || 'N/A' }}</div>
-            <div class="text-subtitle1 bg-white/20 px-3 py-1 rounded-full mt-3">{{ highestDemandItem.qty || 0 }} EA Picked</div>
+            <div class="text-subtitle1 font-bold bg-gray-200 border border-black px-3 py-1 rounded-full mt-3">{{ highestDemandItem.qty || 0 }} EA Picked</div>
           </q-card-section>
         </q-card>
 
         <!-- Lowest Demand Item -->
-        <q-card class="shadow-2xl rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 text-white transform transition hover:scale-105">
+        <q-card class="shadow-2xl rounded-2xl border-2 border-black bg-white text-black transform transition hover:scale-105">
           <q-card-section class="flex flex-col items-center text-center q-pa-lg">
-            <q-icon name="trending_down" size="60px" class="q-mb-md opacity-80" />
-            <div class="text-h6 font-bold uppercase tracking-wider">Lowest Demand</div>
+            <q-icon name="trending_down" size="60px" class="q-mb-md text-black" />
+            <div class="text-h6 font-black uppercase tracking-wider">Lowest Demand</div>
             <div class="text-h5 mt-2 font-black">{{ lowestDemandItem.name || 'N/A' }}</div>
-            <div class="text-subtitle1 bg-white/20 px-3 py-1 rounded-full mt-3">{{ lowestDemandItem.qty || 0 }} EA Picked</div>
+            <div class="text-subtitle1 font-bold bg-gray-200 border border-black px-3 py-1 rounded-full mt-3">{{ lowestDemandItem.qty || 0 }} EA Picked</div>
           </q-card-section>
         </q-card>
 
         <!-- Top Branch -->
-        <q-card class="shadow-2xl rounded-2xl bg-gradient-to-br from-red-800 to-black text-white transform transition hover:scale-105">
+        <q-card class="shadow-2xl rounded-2xl border-2 border-black bg-white text-black transform transition hover:scale-105">
           <q-card-section class="flex flex-col items-center text-center q-pa-lg">
-            <q-icon name="store" size="60px" class="q-mb-md opacity-80" />
-            <div class="text-h6 font-bold uppercase tracking-wider">Top Branch</div>
+            <q-icon name="store" size="60px" class="q-mb-md text-black" />
+            <div class="text-h6 font-black uppercase tracking-wider">Top Branch</div>
             <div class="text-h5 mt-2 font-black">{{ topBranch.code || 'N/A' }}</div>
-            <div class="text-subtitle1 bg-white/20 px-3 py-1 rounded-full mt-3">{{ topBranch.qty || 0 }} Items Dispatched</div>
+            <div class="text-subtitle1 font-bold bg-gray-200 border border-black px-3 py-1 rounded-full mt-3">{{ topBranch.qty || 0 }} Items Dispatched</div>
           </q-card-section>
         </q-card>
       </div>
 
       <!-- Detailed Branch Item Report -->
-      <q-card class="shadow-2xl rounded-2xl overflow-hidden border border-white/40 bg-white/90 backdrop-blur-xl mt-8">
-        <q-card-section class="bg-gray-800 text-white q-pa-md flex justify-between items-center">
+      <q-card class="shadow-2xl rounded-2xl overflow-hidden border-2 border-black bg-white mt-8">
+        <q-card-section class="bg-black text-white q-pa-md flex justify-between items-center">
           <div class="text-h6 font-bold flex items-center gap-2">
             <q-icon name="assessment" />
             Branch Distribution Report (All Created Invoices)
@@ -50,13 +50,13 @@
           :columns="reportColumns"
           row-key="branchCode"
           flat
-          class="bg-transparent"
-          table-header-class="bg-gray-100 text-gray-700 font-bold"
+          class="bg-transparent text-black font-bold"
+          table-header-class="bg-gray-200 text-black font-black"
           :pagination="{ rowsPerPage: 10 }"
         >
           <template v-slot:body-cell-totalItems="props">
             <q-td :props="props">
-              <q-badge color="blue" class="font-bold px-2 py-1">{{ props.row.totalItems }} EA</q-badge>
+              <q-badge color="black" class="font-bold px-2 py-1">{{ props.row.totalItems }} EA</q-badge>
             </q-td>
           </template>
         </q-table>
@@ -76,7 +76,7 @@ const topBranch = ref({})
 const branchReportData = ref([])
 
 const reportColumns = [
-  { name: 'branchCode', align: 'left', label: 'Branch Code', field: 'branchCode', sortable: true },
+  { name: 'branchCode', align: 'left', label: 'Branch Code & Name', field: 'branchCode', sortable: true },
   { name: 'totalOrders', align: 'center', label: 'Total Invoices', field: 'totalOrders', sortable: true },
   { name: 'totalItems', align: 'center', label: 'Total Items (EA)', field: 'totalItems', sortable: true }
 ]
@@ -90,12 +90,13 @@ onMounted(async () => {
 
   orders.forEach(order => {
     // Branch counts structure
-    if (!branchCounts[order.branchCode]) branchCounts[order.branchCode] = { qty: 0, orders: 0 }
-    branchCounts[order.branchCode].orders += 1
+    const fullBranchName = `${order.branchCode} - ${order.branchName}`
+    if (!branchCounts[fullBranchName]) branchCounts[fullBranchName] = { qty: 0, orders: 0 }
+    branchCounts[fullBranchName].orders += 1
     
     order.items.forEach(item => {
       // Branch total items
-      branchCounts[order.branchCode].qty += item.qtyInEA
+      branchCounts[fullBranchName].qty += item.qtyInEA
       
       // Item total counts
       if (!itemCounts[item.name]) itemCounts[item.name] = 0
